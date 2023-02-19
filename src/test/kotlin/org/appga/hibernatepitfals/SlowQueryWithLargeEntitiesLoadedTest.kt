@@ -5,10 +5,12 @@ import jakarta.persistence.EntityManager
 import org.assertj.core.api.Assertions.assertThat
 import org.assertj.core.api.Assertions.withinPercentage
 import org.jeasy.random.EasyRandom
+import org.junit.jupiter.api.BeforeAll
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.MethodOrderer
 import org.junit.jupiter.api.Order
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.TestInstance
 import org.junit.jupiter.api.TestMethodOrder
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.test.context.SpringBootTest
@@ -20,14 +22,11 @@ import kotlin.system.measureTimeMillis
 
 
 @SpringBootTest
-@Testcontainers
+@TestInstance(TestInstance.Lifecycle.PER_CLASS)
 @TestMethodOrder(MethodOrderer.OrderAnnotation::class)
-class SlowQueryWithLargeEntitiesLoadedTest {
+class SlowQueryWithLargeEntitiesLoadedTest : AbstractPostgresTest() {
 
     companion object {
-        @Container
-        private val postgresqlContainer = PostgreSQLContainer<Nothing>()
-
         private var dataInitiated = false
     }
 
@@ -47,7 +46,72 @@ class SlowQueryWithLargeEntitiesLoadedTest {
     @Autowired
     lateinit var productRepository: ProductRepository
 
-    @BeforeEach
+    @Test
+    @Order(1)
+    fun `problem - running query with hibernate containing multiple entities is slow - this will fail`() {
+        val tries = 1_000
+        transactionTemplate.execute {
+            // reading before
+            val (_, searchingAvgTime) = runQueries(tries, "Searching time w/o entities in memory")
+
+            simulateHeavyDataLoad()
+
+            // reading after
+            val (_, searchingAvgTimeAfter ) = runQueries(tries, "Searching time with loaded entities")
+            assertThat(searchingAvgTime)
+                .`as`("Queries should be as much performant as before with 25% tolerance")
+                .isCloseTo(searchingAvgTimeAfter, withinPercentage(25))
+        }
+    }
+
+    @Test
+    @Order(2)
+    fun `solution 1 - clearing hibernate context after heavy load`() {
+        val tries = 1_000
+        transactionTemplate.execute {
+            // reading before
+            val (_, searchingAvgTime) = runQueries(tries, "Searching time w/o entities in memory")
+
+            simulateHeavyDataLoad()
+
+            // The only change is to clear the context. This will avoid dirty check on loaded entities before each query
+            // We can skip entityManager.flush in this case, as the transaction is read-only - no changes are made
+            entityManager.clear()
+
+            // reading after
+            val (_, searchingAvgTimeAfter ) = runQueries(tries, "Searching time with loaded entities")
+            assertThat(searchingAvgTime)
+                .`as`("Queries should be as much performant as before with 25% tolerance")
+                .isCloseTo(searchingAvgTimeAfter, withinPercentage(25))
+        }
+    }
+
+    @Test
+    @Order(3)
+    fun `solution 2 - running next query in another hibernate session (transaction)`() {
+        val tries = 1_000
+
+        // transaction #1
+        val searchingAvgTime = transactionTemplate.execute {
+            // reading before
+            val (_, avg) = runQueries(tries, "Searching time w/o entities in memory")
+            simulateHeavyDataLoad()
+            avg
+        }
+
+        // transaction #2
+        val searchingAvgTimeAfter = transactionTemplate.execute {
+            // reading after
+            val (_, avg ) = runQueries(tries, "Searching time with loaded entities")
+            avg
+        }
+
+        assertThat(searchingAvgTime)
+            .`as`("Queries should be as much performant as before with 25% tolerance")
+            .isCloseTo(searchingAvgTimeAfter, withinPercentage(25))
+    }
+
+    @BeforeAll
     fun `prepare test data`() {
         if (dataInitiated) {
             return
@@ -85,71 +149,6 @@ class SlowQueryWithLargeEntitiesLoadedTest {
         val products = productRepository.findAll()
         assertThat(products.size).isEqualTo(numOfObjects)
         println("Loaded ${customers.size + products.size} entities to the session")
-    }
-
-    @Test
-    @Order(1)
-    fun `problem - running query with hibernate containing multiple entities is slow - this will fail`() {
-        val tries = 1_000
-        transactionTemplate.execute {
-            // reading before
-            val (_, searchingAvgTime) = runQueries(tries, "Searching time w/o entities in memory")
-
-            simulateHeavyDataLoad()
-
-            // reading after
-            val (_, searchingAvgTimeAfter ) = runQueries(tries, "Searching time with loaded entities")
-            assertThat(searchingAvgTime)
-                .`as`("Queries should be as much performant as before with 20% tolerance")
-                .isCloseTo(searchingAvgTimeAfter, withinPercentage(20))
-        }
-    }
-
-    @Test
-    @Order(2)
-    fun `solution 1 - clearing hibernate context after heavy load`() {
-        val tries = 1_000
-        transactionTemplate.execute {
-            // reading before
-            val (_, searchingAvgTime) = runQueries(tries, "Searching time w/o entities in memory")
-
-            simulateHeavyDataLoad()
-
-            // The only change is to clear the context. This will avoid dirty check on loaded entities before each query
-            // We can skip entityManager.flush in this case, as the transaction is read-only - no changes are made
-            entityManager.clear()
-
-            // reading after
-            val (_, searchingAvgTimeAfter ) = runQueries(tries, "Searching time with loaded entities")
-            assertThat(searchingAvgTime)
-                .`as`("Queries should be as much performant as before with 20% tolerance")
-                .isCloseTo(searchingAvgTimeAfter, withinPercentage(20))
-        }
-    }
-
-    @Test
-    @Order(3)
-    fun `solution 2 - running next query in another hibernate session (transaction)`() {
-        val tries = 1_000
-
-        // transaction #1
-        val searchingAvgTime = transactionTemplate.execute {
-            // reading before
-            val (_, avg) = runQueries(tries, "Searching time w/o entities in memory")
-            simulateHeavyDataLoad()
-            avg
-        }
-
-        // transaction #2
-        val searchingAvgTimeAfter = transactionTemplate.execute {
-            // reading after
-            val (_, avg ) = runQueries(tries, "Searching time with loaded entities")
-            avg
-        }
-
-        assertThat(searchingAvgTime)
-            .`as`("Queries should be as much performant as before with 20% tolerance")
-            .isCloseTo(searchingAvgTimeAfter, withinPercentage(20))
     }
 
 }
