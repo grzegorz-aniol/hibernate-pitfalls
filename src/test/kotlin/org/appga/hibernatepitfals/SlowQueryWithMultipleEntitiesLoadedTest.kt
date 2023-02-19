@@ -6,7 +6,6 @@ import org.assertj.core.api.Assertions.assertThat
 import org.assertj.core.api.Assertions.withinPercentage
 import org.jeasy.random.EasyRandom
 import org.junit.jupiter.api.BeforeAll
-import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.MethodOrderer
 import org.junit.jupiter.api.Order
 import org.junit.jupiter.api.Test
@@ -15,16 +14,13 @@ import org.junit.jupiter.api.TestMethodOrder
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.test.context.SpringBootTest
 import org.springframework.transaction.support.TransactionTemplate
-import org.testcontainers.containers.PostgreSQLContainer
-import org.testcontainers.junit.jupiter.Container
-import org.testcontainers.junit.jupiter.Testcontainers
 import kotlin.system.measureTimeMillis
 
 
 @SpringBootTest
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 @TestMethodOrder(MethodOrderer.OrderAnnotation::class)
-class SlowQueryWithLargeEntitiesLoadedTest : AbstractPostgresTest() {
+class SlowQueryWithMultipleEntitiesLoadedTest : AbstractPostgresTest() {
 
     companion object {
         private var dataInitiated = false
