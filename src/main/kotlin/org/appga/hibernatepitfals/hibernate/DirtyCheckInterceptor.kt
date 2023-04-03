@@ -26,7 +26,7 @@ class DirtyCheckInterceptor : EmptyInterceptor() {
         types: Array<out Type>?
     ): IntArray? {
         if (entity != null) {
-            log.info("Checking dirty check for entity: ${entity.javaClass.simpleName} with id: $id")
+            log.trace("Checking dirty check for entity: ${entity.javaClass.simpleName} with id: $id")
             dirtyChecksCount.increment()
             return super.findDirty(entity, id, currentState, previousState, propertyNames, types)
         }

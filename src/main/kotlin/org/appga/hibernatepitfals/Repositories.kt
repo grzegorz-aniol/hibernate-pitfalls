@@ -27,11 +27,15 @@ interface CustomerReadOnlyRepository : JpaRepository<Customer, UUID> {
 @Repository
 interface ProductRepository : JpaRepository<Product, UUID> {
     fun findByName(name: String): Product?
+}
 
+@Repository
+interface ProductReadOnlyRepository : JpaRepository<Product, UUID> {
     @Query(value = "select * from product", nativeQuery = true)
     @QueryHints(value = [QueryHint(name = org.hibernate.jpa.QueryHints.HINT_READONLY, value = "true")], forCounting = false)
     fun findBy(): List<Product>
 }
+
 
 @Repository
 interface PersonRepository : JpaRepository<Person, UUID> {

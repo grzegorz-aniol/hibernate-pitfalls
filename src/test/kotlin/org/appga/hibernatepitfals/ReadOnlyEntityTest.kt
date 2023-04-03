@@ -1,15 +1,13 @@
 package org.appga.hibernatepitfals
 
 import com.github.javafaker.Faker
-import jakarta.persistence.EntityManager
 import org.appga.hibernatepitfals.hibernate.DirtyCheckInterceptor
 import org.assertj.core.api.Assertions.assertThat
 import org.hibernate.Session
 import org.hibernate.jpa.QueryHints
+import org.junit.jupiter.api.BeforeAll
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.TestInstance
-import org.slf4j.LoggerFactory
-import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.test.context.SpringBootTest
 import org.springframework.transaction.annotation.Transactional
 
@@ -17,16 +15,10 @@ import org.springframework.transaction.annotation.Transactional
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class ReadOnlyEntityTest : AbstractPostgresTest() {
 
-    private val log = LoggerFactory.getLogger(ReadOnlyEntityTest::class.java)
-
-    @Autowired
-    lateinit var entityManager: EntityManager
-
-    @Autowired
-    lateinit var customerReadOnlyRepository: CustomerReadOnlyRepository
-
-    @Autowired
-    lateinit var customerRepository: CustomerRepository
+    @BeforeAll
+    fun setupTest() {
+        createTestData()
+    }
 
     @Test
     @Transactional
@@ -70,7 +62,6 @@ class ReadOnlyEntityTest : AbstractPostgresTest() {
         val c2 = customerReadOnlyRepository.findById(customerId).get()
         assertThat(c2.name).isNotEqualTo(newName)
     }
-
 
     @Test
     @Transactional(readOnly = true)
@@ -148,7 +139,6 @@ class ReadOnlyEntityTest : AbstractPostgresTest() {
         assertThat(c3.name).isEqualTo(newName)
     }
 
-
     @Test
     @Transactional
     fun `should not update read only entity`() {
@@ -194,16 +184,46 @@ class ReadOnlyEntityTest : AbstractPostgresTest() {
         val newName = Faker.instance().funnyName().name()
         log.info("New name: $newName")
 
-        val c = customerRepository.findAll().first()
-        c.name = newName
+        // fetch all entities
+        customerRepository.findAll().first()
 
         DirtyCheckInterceptor.getAndReset()
         customerRepository.findByName("xxxx")
         val dirtyChecks = DirtyCheckInterceptor.getAndReset()
-        assertThat(dirtyChecks).isEqualTo(1L)
+        assertThat(dirtyChecks).isEqualTo(10_000)
+    }
 
-        val c2 = customerReadOnlyRepository.findById(c.id).get()
-        assertThat(c2.name).isEqualTo(newName)
+
+    @Test
+    @Transactional
+    fun `should not run dirty check if entities were loaded in read-only mode`() {
+        val newName = Faker.instance().funnyName().name()
+        log.info("New name: $newName")
+
+        // load all entities to persistence context (using read-only hint)
+        customerReadOnlyRepository.findBy()
+
+        DirtyCheckInterceptor.getAndReset()
+        customerRepository.findByName("xxxx")
+        val dirtyChecks = DirtyCheckInterceptor.getAndReset()
+        assertThat(dirtyChecks).isZero()
+    }
+
+    @Test
+    @Transactional
+    fun `should not run dirty check if entities were loaded in read-only mode (variant #2)`() {
+        val newName = Faker.instance().funnyName().name()
+        log.info("New name: $newName")
+
+        withReadOnlyEntities {
+            // load all entities to Persistence Context as read-only
+            customerRepository.findAll().first()
+        }
+
+        DirtyCheckInterceptor.getAndReset()
+        customerRepository.findByName("xxxx")
+        val dirtyChecks = DirtyCheckInterceptor.getAndReset()
+        assertThat(dirtyChecks).isZero()
     }
 
     fun <T> withReadOnlyEntities(producer: () -> T): T {
