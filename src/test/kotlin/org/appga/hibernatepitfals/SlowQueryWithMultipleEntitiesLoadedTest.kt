@@ -242,7 +242,8 @@ class SlowQueryWithMultipleEntitiesLoadedTest : AbstractPostgresTest() {
     }
 
     private fun simulateHeavyDataLoadByJpaQueries(): AllDataResult {
-        val (customers, products) = readOnlyWrapper.findAllByQuery()
+//        val (customers, products) = readOnlyWrapper.findAllByQuery()
+        val (customers, products) = readOnlyWrapper.findAllInReadOnlyContext()
         assertThat(customers.size).isEqualTo(numOfObjects)
         assertThat(products.size).isEqualTo(numOfObjects)
         println("Loaded ${customers.size + products.size} entities to the session")

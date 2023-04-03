@@ -1,9 +1,7 @@
 package org.appga.hibernatepitfals
 
-import jakarta.persistence.EntityManager
 import jakarta.persistence.QueryHint
 import java.util.UUID
-import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.data.jpa.repository.EntityGraph
 import org.springframework.data.jpa.repository.JpaRepository
 import org.springframework.data.jpa.repository.Query
@@ -16,6 +14,13 @@ interface CustomerRepository : JpaRepository<Customer, UUID> {
 
     @Query(value = "select * from customer", nativeQuery = true)
     @QueryHints(value = [QueryHint(name = org.hibernate.jpa.QueryHints.HINT_READONLY, value = "true")], forCounting = false)
+    fun findBy(): List<Customer>
+}
+
+@Repository
+interface CustomerReadOnlyRepository : JpaRepository<Customer, UUID> {
+
+    @QueryHints(value = [QueryHint(name = org.hibernate.annotations.QueryHints.READ_ONLY, value = "true")])
     fun findBy(): List<Customer>
 }
 

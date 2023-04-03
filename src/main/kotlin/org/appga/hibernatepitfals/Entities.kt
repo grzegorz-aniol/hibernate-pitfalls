@@ -10,12 +10,16 @@ import jakarta.persistence.Id
 import jakarta.persistence.Inheritance
 import jakarta.persistence.InheritanceType
 import jakarta.persistence.JoinColumn
+import jakarta.persistence.NamedQueries
+import jakarta.persistence.NamedQuery
 import jakarta.persistence.OneToOne
+import jakarta.persistence.QueryHint
 import java.math.BigDecimal
 import java.time.LocalDate
 import java.util.UUID
 
 @Entity
+@NamedQuery(name = "findAllCustomers", query = "from Customer", hints = [QueryHint(name = org.hibernate.jpa.QueryHints.HINT_READONLY, value = "true")])
 class Customer {
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
@@ -29,6 +33,7 @@ class Customer {
 }
 
 @Entity
+@NamedQuery(name = "findAllProducts", query = "from Product", hints = [QueryHint(name = org.hibernate.jpa.QueryHints.HINT_READONLY, value = "true")])
 class Product {
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)

@@ -1,6 +1,7 @@
 package org.appga.hibernatepitfals
 
 import jakarta.persistence.EntityManager
+import org.hibernate.Session
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Propagation
 import org.springframework.transaction.annotation.Transactional
@@ -24,6 +25,22 @@ class ReadOnlyWrapperService(
         customers = customerRepository.findAll(),
         products = productRepository.findAll()
     )
+
+    @Transactional(propagation = Propagation.MANDATORY)
+    fun findAllInReadOnlyContext(): AllDataResult {
+        val session = entityManager.unwrap(Session::class.java)
+        val prevState = session.isDefaultReadOnly;
+        try {
+            session.isDefaultReadOnly = true
+            return AllDataResult(
+//                customers = customerRepository.findBy(),
+                customers = entityManager.createNamedQuery("findAllCustomers", Customer::class.java).resultList,
+                products = entityManager.createNamedQuery("findAllProducts", Product::class.java).resultList,
+            )
+        } finally {
+            session.isDefaultReadOnly = prevState
+        }
+    }
 
     @Transactional(propagation = Propagation.MANDATORY)
     fun findAllByQuery(): AllDataResult {
