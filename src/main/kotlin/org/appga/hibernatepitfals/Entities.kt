@@ -1,19 +1,19 @@
 package org.appga.hibernatepitfals
 
-import jakarta.persistence.CascadeType
-import jakarta.persistence.Column
-import jakarta.persistence.Entity
-import jakarta.persistence.FetchType
-import jakarta.persistence.GeneratedValue
-import jakarta.persistence.GenerationType
-import jakarta.persistence.Id
-import jakarta.persistence.Inheritance
-import jakarta.persistence.InheritanceType
-import jakarta.persistence.JoinColumn
-import jakarta.persistence.NamedQueries
-import jakarta.persistence.NamedQuery
-import jakarta.persistence.OneToOne
-import jakarta.persistence.QueryHint
+import javax.persistence.CascadeType
+import javax.persistence.Column
+import javax.persistence.Entity
+import javax.persistence.FetchType
+import javax.persistence.GeneratedValue
+import javax.persistence.GenerationType
+import javax.persistence.Id
+import javax.persistence.Inheritance
+import javax.persistence.InheritanceType
+import javax.persistence.JoinColumn
+import javax.persistence.NamedQueries
+import javax.persistence.NamedQuery
+import javax.persistence.OneToOne
+import javax.persistence.QueryHint
 import java.math.BigDecimal
 import java.time.LocalDate
 import java.util.UUID
@@ -22,7 +22,7 @@ import java.util.UUID
 @NamedQuery(name = "findAllCustomers", query = "from Customer", hints = [QueryHint(name = org.hibernate.jpa.QueryHints.HINT_READONLY, value = "true")])
 class Customer {
     @Id
-    @GeneratedValue(strategy = GenerationType.UUID)
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
     lateinit var id: UUID
 
     @Column
@@ -36,7 +36,7 @@ class Customer {
 @NamedQuery(name = "findAllProducts", query = "from Product", hints = [QueryHint(name = org.hibernate.jpa.QueryHints.HINT_READONLY, value = "true")])
 class Product {
     @Id
-    @GeneratedValue(strategy = GenerationType.UUID)
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
     lateinit var id: UUID
 
     @Column
@@ -49,7 +49,7 @@ class Product {
 @Entity
 class Address {
     @Id
-    @GeneratedValue(strategy = GenerationType.AUTO)
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
     lateinit var id: UUID
 
     @Column
@@ -67,7 +67,7 @@ class Address {
 @Inheritance(strategy = InheritanceType.JOINED)
 open class Human {
     @Id
-    @GeneratedValue(strategy = GenerationType.AUTO)
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
     open lateinit var id: UUID
 
     open lateinit var dna: String

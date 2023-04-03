@@ -1,6 +1,6 @@
 package org.appga.hibernatepitfals
 
-import jakarta.persistence.EntityManager
+import javax.persistence.EntityManager
 import org.hibernate.Session
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Propagation

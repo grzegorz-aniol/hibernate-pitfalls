@@ -1,7 +1,7 @@
 package org.appga.hibernatepitfals
 
 import com.github.javafaker.Faker
-import jakarta.persistence.EntityManager
+import javax.persistence.EntityManager
 import org.assertj.core.api.Assertions.assertThat
 import org.jeasy.random.EasyRandom
 import org.junit.jupiter.api.BeforeAll

@@ -13,7 +13,7 @@ spring:
 
 logging:
   level:
-#    org.hibernate.SQL: TRACE
+    org.hibernate.SQL: TRACE
 #    org.hibernate: DEBUG
 #    org.hibernate.engine.transaction.internal.TransactionImpl: DEBUG
     org.hibernate.transaction: DEBUG

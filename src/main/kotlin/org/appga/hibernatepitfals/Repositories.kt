@@ -1,6 +1,6 @@
 package org.appga.hibernatepitfals
 
-import jakarta.persistence.QueryHint
+import javax.persistence.QueryHint
 import java.util.UUID
 import org.springframework.data.jpa.repository.EntityGraph
 import org.springframework.data.jpa.repository.JpaRepository
