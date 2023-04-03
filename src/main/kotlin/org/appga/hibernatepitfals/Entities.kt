@@ -1,5 +1,8 @@
 package org.appga.hibernatepitfals
 
+import java.math.BigDecimal
+import java.time.LocalDate
+import java.util.UUID
 import javax.persistence.CascadeType
 import javax.persistence.Column
 import javax.persistence.Entity
@@ -10,19 +13,22 @@ import javax.persistence.Id
 import javax.persistence.Inheritance
 import javax.persistence.InheritanceType
 import javax.persistence.JoinColumn
-import javax.persistence.NamedQueries
 import javax.persistence.NamedQuery
 import javax.persistence.OneToOne
+import javax.persistence.PostUpdate
 import javax.persistence.QueryHint
-import java.math.BigDecimal
-import java.time.LocalDate
-import java.util.UUID
+import org.slf4j.LoggerFactory
 
 @Entity
 @NamedQuery(name = "findAllCustomers", query = "from Customer", hints = [QueryHint(name = org.hibernate.jpa.QueryHints.HINT_READONLY, value = "true")])
 class Customer {
+    companion object {
+        private val log = LoggerFactory.getLogger(Customer::class.java)
+    }
+
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @GeneratedValue(strategy = GenerationType.AUTO)
+    @Column(columnDefinition = "UUID")
     lateinit var id: UUID
 
     @Column
@@ -30,13 +36,19 @@ class Customer {
 
     @Column
     lateinit var sinceDate: LocalDate
+
+    @PostUpdate
+    fun postUpdate() {
+        log.info("Customer id $id was updated")
+    }
 }
 
 @Entity
 @NamedQuery(name = "findAllProducts", query = "from Product", hints = [QueryHint(name = org.hibernate.jpa.QueryHints.HINT_READONLY, value = "true")])
 class Product {
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @GeneratedValue(strategy = GenerationType.AUTO)
+    @Column(columnDefinition = "UUID")
     lateinit var id: UUID
 
     @Column
@@ -49,7 +61,8 @@ class Product {
 @Entity
 class Address {
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @GeneratedValue(strategy = GenerationType.AUTO)
+    @Column(columnDefinition = "UUID")
     lateinit var id: UUID
 
     @Column
@@ -67,7 +80,8 @@ class Address {
 @Inheritance(strategy = InheritanceType.JOINED)
 open class Human {
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @GeneratedValue(strategy = GenerationType.AUTO)
+    @Column(columnDefinition = "UUID")
     open lateinit var id: UUID
 
     open lateinit var dna: String

@@ -1,11 +1,7 @@
 package org.appga.hibernatepitfals
 
-import com.github.javafaker.Faker
-import javax.persistence.EntityManager
 import org.assertj.core.api.Assertions.assertThat
 import org.assertj.core.data.Percentage.withPercentage
-import org.jeasy.random.EasyRandom
-import org.junit.jupiter.api.AfterAll
 import org.junit.jupiter.api.BeforeAll
 import org.junit.jupiter.api.MethodOrderer
 import org.junit.jupiter.api.Order
@@ -13,37 +9,14 @@ import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.TestInstance
 import org.junit.jupiter.api.TestMethodOrder
 import org.nield.kotlinstatistics.percentile
-import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.test.context.SpringBootTest
-import org.springframework.transaction.support.TransactionTemplate
 import kotlin.system.measureNanoTime
 import kotlin.system.measureTimeMillis
-
 
 @SpringBootTest
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 @TestMethodOrder(MethodOrderer.OrderAnnotation::class)
 class SlowdownReadingMultipleEntitiesTest : AbstractPostgresTest() {
-
-    companion object {
-        private var dataInitiated = false
-    }
-
-    private val numOfObjects = 5_000
-    private val easyRandom = EasyRandom()
-    private val faker = Faker()
-
-    @Autowired
-    lateinit var entityManager: EntityManager
-
-    @Autowired
-    lateinit var transactionTemplate: TransactionTemplate
-
-    @Autowired
-    lateinit var customerRepository: CustomerRepository
-
-    @Autowired
-    lateinit var productRepository: ProductRepository
 
     @Test
     @Order(1)
@@ -75,26 +48,7 @@ class SlowdownReadingMultipleEntitiesTest : AbstractPostgresTest() {
 
     @BeforeAll
     fun `prepare test data`() {
-        if (dataInitiated) {
-            return
-        }
-        // create test data
-        repeat(numOfObjects) { num ->
-            customerRepository.save(easyRandom.nextObject(Customer::class.java).also { it.name = "customer_$num" })
-            productRepository.save(easyRandom.nextObject(Product::class.java).also { it.name = "product_$num" })
-        }
-        // warm up
-        repeat(numOfObjects) { num ->
-            customerRepository.findByName(faker.name().fullName())
-            productRepository.findByName(faker.name().fullName())
-        }
-        dataInitiated = true
-    }
-
-    @AfterAll
-    fun `cleanup data`() {
-        customerRepository.deleteAll();
-        productRepository.deleteAll();
+        createTestData()
     }
 
     private data class Metrics(val totalTime: Long, val avg: Double, val p90: Double)

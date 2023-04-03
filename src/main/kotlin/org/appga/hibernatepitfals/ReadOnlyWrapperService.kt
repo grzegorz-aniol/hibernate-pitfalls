@@ -12,7 +12,9 @@ data class AllDataResult(val customers: List<Customer>, val products: List<Produ
 class ReadOnlyWrapperService(
     private val entityManager: EntityManager,
     private val customerRepository: CustomerRepository,
+    private val customerReadOnlyRepository: CustomerReadOnlyRepository,
     private val productRepository: ProductRepository,
+    private val productReadOnlyRepository: ProductReadOnlyRepository,
 ) {
     @Transactional(propagation = Propagation.REQUIRES_NEW, readOnly = true)
     fun findAllCustomersAndProductsInNestedTx() = AllDataResult(
@@ -29,13 +31,18 @@ class ReadOnlyWrapperService(
     @Transactional(propagation = Propagation.MANDATORY)
     fun findAllInReadOnlyContext(): AllDataResult {
         val session = entityManager.unwrap(Session::class.java)
-        val prevState = session.isDefaultReadOnly;
+        val prevState = session.isDefaultReadOnly
         try {
             session.isDefaultReadOnly = true
             return AllDataResult(
-//                customers = customerRepository.findBy(),
-                customers = entityManager.createNamedQuery("findAllCustomers", Customer::class.java).resultList,
-                products = entityManager.createNamedQuery("findAllProducts", Product::class.java).resultList,
+                customers = customerRepository.findAll(),
+                products = productRepository.findAll(),
+                // without session.isDefaultReadOnly = true,
+                // all other ways of reading read-only entities works as well
+//                  customers = customerReadOnlyRepository.findBy(),
+//                  products = productReadOnlyRepository.findBy(),
+//                customers = entityManager.createNamedQuery("findAllCustomers", Customer::class.java).resultList,
+//                products = entityManager.createNamedQuery("findAllProducts", Product::class.java).resultList,
             )
         } finally {
             session.isDefaultReadOnly = prevState

@@ -15,10 +15,12 @@ spring:
 
 logging:
   level:
-    org.hibernate.SQL: TRACE
+#    org.hibernate.SQL: TRACE
 #    org.hibernate: DEBUG
 #    org.hibernate.engine.transaction.internal.TransactionImpl: DEBUG
 #    org.hibernate.transaction: DEBUG
 #    org.hibernate.jdbc: DEBUG
     org.hibernate.stat: INFO
+    org.springframework.transaction: WARN
+    org.springframework.test.context.transaction: WARN
     org.appga: DEBUG
