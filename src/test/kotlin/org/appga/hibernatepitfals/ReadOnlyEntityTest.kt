@@ -1,9 +1,7 @@
 package org.appga.hibernatepitfals
 
 import com.github.javafaker.Faker
-import java.time.LocalDate
 import javax.persistence.EntityManager
-import javax.persistence.QueryHint
 import org.assertj.core.api.Assertions.assertThat
 import org.hibernate.Session
 import org.hibernate.jpa.QueryHints
@@ -28,8 +26,10 @@ class ReadOnlyEntityTest : AbstractPostgresTest() {
     lateinit var entityManager: EntityManager
 
     @Autowired
-    lateinit var customerRepository: CustomerReadOnlyRepository
+    lateinit var customerReadOnlyRepository: CustomerReadOnlyRepository
 
+    @Autowired
+    lateinit var customerRepository: CustomerRepository
 
     @Test
     @Transactional
@@ -39,18 +39,36 @@ class ReadOnlyEntityTest : AbstractPostgresTest() {
 
         val session = entityManager.unwrap(Session::class.java)
         session.isDefaultReadOnly = true
-        val c = customerRepository.findAll().first()
+        val c = customerRepository.findFirstBy()
+        c.name = newName
+
+        entityManager.flush()
+        entityManager.clear()
+
+        val c2 = customerReadOnlyRepository.findById(c.id).get()
+
+        println("is r/o : ${session.isReadOnly(c2)}")
+        assertThat(c2.name).isNotEqualTo(newName)
+    }
+
+    @Test
+    @Transactional(readOnly = true)
+    fun `should not modify object if transaction is read only`() {
+        val newName = Faker.instance().funnyName().name()
+        log.info("New name: $newName")
+
+        val c = customerRepository.findFirstBy()
 
         c.name = newName
 
         entityManager.flush()
         entityManager.clear()
 
-        val c2 = customerRepository.findById(c.id).get()
+        val c2 = customerReadOnlyRepository.findById(c.id).get()
 
-        println("is r/o : ${session.isReadOnly(c2)}")
         assertThat(c2.name).isNotEqualTo(newName)
     }
+
 
     @Test
     @Transactional
@@ -59,14 +77,13 @@ class ReadOnlyEntityTest : AbstractPostgresTest() {
         log.info("New name: $newName")
 
         val session = entityManager.unwrap(Session::class.java)
-        val c = customerRepository.findAll().first()
-
+        val c = customerRepository.findFirstBy()
         c.name = newName
 
         entityManager.flush()
         entityManager.clear()
 
-        val c2 = customerRepository.findById(c.id).get()
+        val c2 = customerReadOnlyRepository.findById(c.id).get()
 
         println("is r/o : ${session.isReadOnly(c2)}")
         assertThat(c2.name).isEqualTo(newName)
@@ -79,7 +96,7 @@ class ReadOnlyEntityTest : AbstractPostgresTest() {
         log.info("New name: $newName")
 
         val session = entityManager.unwrap(Session::class.java)
-        val c = customerRepository.findAll().first()
+        val c = customerRepository.findFirstBy()
         c.name = newName
 
         session.isDefaultReadOnly = true
@@ -87,27 +104,49 @@ class ReadOnlyEntityTest : AbstractPostgresTest() {
         entityManager.flush()
         entityManager.clear()
 
-        val c2 = customerRepository.findById(c.id).get()
+        val c2 = customerReadOnlyRepository.findById(c.id).get()
 
         println("is r/o : ${session.isReadOnly(c2)}")
         assertThat(c2.name).isEqualTo(newName)
     }
 
-
     @Test
     @Transactional
-    fun `modify read only entity`() {
+    fun `should modify object loaded before session is marked as read only variant 2`() {
         val newName = Faker.instance().funnyName().name()
         log.info("New name: $newName")
 
         val session = entityManager.unwrap(Session::class.java)
-        val c = customerRepository.findBy().first()
+        val c = customerRepository.findFirstBy()
+
+        session.isDefaultReadOnly = true
+        val c2 = customerRepository.findById(c.id).get()
+        c2.name = newName
+
+        entityManager.flush()
+        entityManager.clear()
+
+        val c3 = customerReadOnlyRepository.findById(c.id).get()
+
+        println("is r/o : ${session.isReadOnly(c3)}")
+        assertThat(c3.name).isEqualTo(newName)
+    }
+
+
+    @Test
+    @Transactional
+    fun `should not update read only entity`() {
+        val newName = Faker.instance().funnyName().name()
+        log.info("New name: $newName")
+
+        val session = entityManager.unwrap(Session::class.java)
+        val c = customerReadOnlyRepository.findBy().first()
         c.name = newName
 
         entityManager.flush()
         entityManager.clear()
 
-        val c2 = customerRepository.findById(c.id).get()
+        val c2 = customerReadOnlyRepository.findById(c.id).get()
 
         println("is r/o : ${session.isReadOnly(c2)}")
         assertThat(c2.name).isNotEqualTo(newName)
@@ -115,12 +154,11 @@ class ReadOnlyEntityTest : AbstractPostgresTest() {
 
     @Test
     @Transactional
-    fun `try with hibernate session`() {
+    fun `entity loaded by read only hint is not updated`() {
         val newName = Faker.instance().funnyName().name()
         log.info("New name: $newName")
 
         val session = entityManager.unwrap(Session::class.java)
-//        session.isDefaultReadOnly = true
         val c = session.createQuery("from Customer", Customer::class.java)
             .setHint(QueryHints.HINT_READONLY, "true")
             .resultList.first()
