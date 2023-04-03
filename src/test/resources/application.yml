@@ -9,14 +9,16 @@ spring:
     database-platform: org.hibernate.dialect.PostgreSQLDialect
     properties:
       hibernate:
-        generate_statistics: true
+#        generate_statistics: true
+        ejb:
+          interceptor: org.appga.hibernatepitfals.hibernate.DirtyCheckInterceptor
 
 logging:
   level:
-#    org.hibernate.SQL: TRACE
+    org.hibernate.SQL: TRACE
 #    org.hibernate: DEBUG
 #    org.hibernate.engine.transaction.internal.TransactionImpl: DEBUG
-    org.hibernate.transaction: DEBUG
-    org.hibernate.jdbc: DEBUG
+#    org.hibernate.transaction: DEBUG
+#    org.hibernate.jdbc: DEBUG
     org.hibernate.stat: INFO
     org.appga: DEBUG

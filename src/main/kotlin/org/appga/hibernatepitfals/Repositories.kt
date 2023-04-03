@@ -15,6 +15,8 @@ interface CustomerRepository : JpaRepository<Customer, UUID> {
     @Query(value = "select * from customer", nativeQuery = true)
     @QueryHints(value = [QueryHint(name = org.hibernate.jpa.QueryHints.HINT_READONLY, value = "true")], forCounting = false)
     fun findBy(): List<Customer>
+
+    fun findFirstBy(): Customer
 }
 
 @Repository
@@ -22,6 +24,9 @@ interface CustomerReadOnlyRepository : JpaRepository<Customer, UUID> {
 
     @QueryHints(value = [QueryHint(name = org.hibernate.annotations.QueryHints.READ_ONLY, value = "true")])
     fun findBy(): List<Customer>
+
+    @QueryHints(value = [QueryHint(name = org.hibernate.annotations.QueryHints.READ_ONLY, value = "true")])
+    fun findFirstBy(): Customer
 }
 
 @Repository
