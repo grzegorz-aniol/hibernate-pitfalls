@@ -13,14 +13,20 @@ import jakarta.persistence.JoinColumn
 import jakarta.persistence.NamedQueries
 import jakarta.persistence.NamedQuery
 import jakarta.persistence.OneToOne
+import jakarta.persistence.PostUpdate
 import jakarta.persistence.QueryHint
 import java.math.BigDecimal
 import java.time.LocalDate
 import java.util.UUID
+import org.slf4j.LoggerFactory
 
 @Entity
 @NamedQuery(name = "findAllCustomers", query = "from Customer", hints = [QueryHint(name = org.hibernate.jpa.QueryHints.HINT_READONLY, value = "true")])
 class Customer {
+    companion object {
+        private val log = LoggerFactory.getLogger(Customer::class.java)
+    }
+
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
     lateinit var id: UUID
@@ -30,6 +36,11 @@ class Customer {
 
     @Column
     lateinit var sinceDate: LocalDate
+
+    @PostUpdate
+    fun postUpdate() {
+        log.info("Customer id $id was updated")
+    }
 }
 
 @Entity

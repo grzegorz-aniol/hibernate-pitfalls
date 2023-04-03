@@ -11,11 +11,6 @@ import org.springframework.stereotype.Repository
 @Repository
 interface CustomerRepository : JpaRepository<Customer, UUID> {
     fun findByName(name: String): Customer?
-
-    @Query(value = "select * from customer", nativeQuery = true)
-    @QueryHints(value = [QueryHint(name = org.hibernate.jpa.QueryHints.HINT_READONLY, value = "true")], forCounting = false)
-    fun findBy(): List<Customer>
-
     fun findFirstBy(): Customer
 }
 
