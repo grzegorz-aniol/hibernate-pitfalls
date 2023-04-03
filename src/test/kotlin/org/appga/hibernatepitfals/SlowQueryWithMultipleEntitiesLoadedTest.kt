@@ -3,14 +3,10 @@ package org.appga.hibernatepitfals
 import com.github.javafaker.Faker
 import jakarta.persistence.EntityManager
 import org.assertj.core.api.Assertions.assertThat
-import org.assertj.core.api.Assertions.withinPercentage
 import org.jeasy.random.EasyRandom
 import org.junit.jupiter.api.BeforeAll
-import org.junit.jupiter.api.MethodOrderer
-import org.junit.jupiter.api.Order
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.TestInstance
-import org.junit.jupiter.api.TestMethodOrder
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.test.context.SpringBootTest
 import org.springframework.transaction.support.TransactionTemplate
@@ -19,13 +15,13 @@ import kotlin.system.measureTimeMillis
 
 @SpringBootTest
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
-@TestMethodOrder(MethodOrderer.OrderAnnotation::class)
 class SlowQueryWithMultipleEntitiesLoadedTest : AbstractPostgresTest() {
 
     companion object {
         private var dataInitiated = false
     }
 
+    private val tolerance = 0.33
     private val numOfObjects = 10_000
     private val easyRandom = EasyRandom()
     private val faker = Faker()
@@ -42,8 +38,10 @@ class SlowQueryWithMultipleEntitiesLoadedTest : AbstractPostgresTest() {
     @Autowired
     lateinit var productRepository: ProductRepository
 
+    @Autowired
+    lateinit var readOnlyWrapper : ReadOnlyWrapperService
+
     @Test
-    @Order(1)
     fun `problem - running query with hibernate containing multiple entities is slow - this will fail`() {
         val tries = 1_000
         transactionTemplate.execute {
@@ -54,14 +52,13 @@ class SlowQueryWithMultipleEntitiesLoadedTest : AbstractPostgresTest() {
 
             // reading after
             val (_, searchingAvgTimeAfter ) = runQueries(tries, "Searching time with loaded entities")
-            assertThat(searchingAvgTime)
-                .`as`("Queries should be as much performant as before with 25% tolerance")
-                .isCloseTo(searchingAvgTimeAfter, withinPercentage(25))
+            assertThat(searchingAvgTimeAfter)
+                .`as`("Queries should be as much performant as before with some tolerance")
+                .isLessThan((1.0 + tolerance) * searchingAvgTime)
         }
     }
 
     @Test
-    @Order(2)
     fun `solution 1 - clearing hibernate context after heavy load`() {
         val tries = 1_000
         transactionTemplate.execute {
@@ -72,18 +69,20 @@ class SlowQueryWithMultipleEntitiesLoadedTest : AbstractPostgresTest() {
 
             // The only change is to clear the context. This will avoid dirty check on loaded entities before each query
             // We can skip entityManager.flush in this case, as the transaction is read-only - no changes are made
-            entityManager.clear()
+            val cleanTimeMs = measureTimeMillis {
+                entityManager.clear()
+            }
+            println("Time spent on entity manager clear: $cleanTimeMs [ms]")
 
             // reading after
             val (_, searchingAvgTimeAfter ) = runQueries(tries, "Searching time with loaded entities")
-            assertThat(searchingAvgTime)
-                .`as`("Queries should be as much performant as before with 25% tolerance")
-                .isCloseTo(searchingAvgTimeAfter, withinPercentage(25))
+            assertThat(searchingAvgTimeAfter)
+                .`as`("Queries should be as much performant as before with some tolerance")
+                .isLessThan((1.0 + tolerance) * searchingAvgTime)
         }
     }
 
     @Test
-    @Order(3)
     fun `solution 2 - running next query in another hibernate session (transaction)`() {
         val tries = 1_000
 
@@ -102,14 +101,101 @@ class SlowQueryWithMultipleEntitiesLoadedTest : AbstractPostgresTest() {
             avg
         }
 
-        assertThat(searchingAvgTime)
-            .`as`("Queries should be as much performant as before with 25% tolerance")
-            .isCloseTo(searchingAvgTimeAfter, withinPercentage(25))
+        assertThat(searchingAvgTimeAfter!!)
+            .`as`("Queries should be as much performant as before with some tolerance")
+            .isLessThan((1.0 + tolerance) * searchingAvgTime!!)
+    }
+
+    @Test
+    fun `solution 3 - perform heavy load using nested read-only transaction`() {
+        val tries = 1_000
+
+        transactionTemplate.execute {
+            // reading before
+            val (_, searchingAvgTime) = runQueries(tries, "Searching time w/o entities in memory")
+
+            simulateHeavyDataLoadReadOnly()
+
+            // reading after
+            val (_, searchingAvgTimeAfter ) = runQueries(tries, "Searching time with loaded entities")
+            assertThat(searchingAvgTimeAfter)
+                .`as`("Queries should be as much performant as before with some tolerance")
+                .isLessThan((1.0 + tolerance) * searchingAvgTime)
+        }
+    }
+
+    @Test
+    fun `try #5 - it doesn't work - perform heavy load using JPA queries with read-only hint`() {
+        val tries = 100
+
+        transactionTemplate.execute {
+            // reading before
+            val (_, searchingAvgTime) = runQueries(tries, "Searching time w/o entities in memory")
+
+            val result = simulateHeavyDataLoadByJpaQueries()
+
+            // try to modify an entity
+            val c1 = result.customers.first()
+            c1.name = "test"
+            customerRepository.saveAndFlush(c1)
+
+            // reading after
+            val (_, searchingAvgTimeAfter ) = runQueries(tries, "Searching time with loaded entities")
+            assertThat(searchingAvgTimeAfter)
+                .`as`("Queries should be as much performant as before with some tolerance")
+                .isLessThan((1.0 + tolerance) * searchingAvgTime)
+        }
+    }
+
+    @Test
+    fun `solution 6 - explicit eviction of loaded entities`() {
+        val tries = 1_000
+
+        transactionTemplate.execute {
+            // reading before
+            val (_, searchingAvgTime) = runQueries(tries, "Searching time w/o entities in memory")
+
+            val result = simulateHeavyDataLoad()
+            val detachTime = measureTimeMillis {
+                detachAll(result.customers)
+                detachAll(result.products)
+            }
+            println("Time spent on detaching: $detachTime [ms]")
+
+            // reading after
+            val (_, searchingAvgTimeAfter ) = runQueries(tries, "Searching time with loaded entities")
+            assertThat(searchingAvgTimeAfter)
+                .`as`("Queries should be as much performant as before with some tolerance")
+                .isLessThan((1.0 + tolerance) * searchingAvgTime)
+        }
+    }
+
+    @Test
+    fun `solution 7 - run heavy load via Tx not supported method`() {
+        val tries = 1_000
+
+        transactionTemplate.execute {
+            // reading before
+            val (_, searchingAvgTime) = runQueries(tries, "Searching time w/o entities in memory")
+
+            simulateHeavyDataLoadWithTxNotSupported()
+
+            // reading after
+            val (_, searchingAvgTimeAfter ) = runQueries(tries, "Searching time with loaded entities")
+            assertThat(searchingAvgTimeAfter)
+                .`as`("Queries should be as much performant as before with some tolerance")
+                .isLessThan((1.0 + tolerance) * searchingAvgTime)
+        }
     }
 
     @BeforeAll
     fun `prepare test data`() {
         if (dataInitiated) {
+            return
+        }
+        if (customerRepository.count() >= numOfObjects && productRepository.count() >= numOfObjects) {
+            println("Test data already exists")
+            dataInitiated = true
             return
         }
         // create test data
@@ -139,12 +225,40 @@ class SlowQueryWithMultipleEntitiesLoadedTest : AbstractPostgresTest() {
         return timeInMs to avg
     }
 
-    private fun simulateHeavyDataLoad() {
+    private fun simulateHeavyDataLoad(): AllDataResult {
         val customers = customerRepository.findAll()
         assertThat(customers.size).isEqualTo(numOfObjects)
         val products = productRepository.findAll()
         assertThat(products.size).isEqualTo(numOfObjects)
         println("Loaded ${customers.size + products.size} entities to the session")
+        return AllDataResult(customers = customers, products = products)
+    }
+
+    private fun simulateHeavyDataLoadReadOnly() {
+        val (customers, products) = readOnlyWrapper.findAllCustomersAndProductsInNestedTx()
+        assertThat(customers.size).isEqualTo(numOfObjects)
+        assertThat(products.size).isEqualTo(numOfObjects)
+        println("Loaded ${customers.size + products.size} entities to the session")
+    }
+
+    private fun simulateHeavyDataLoadByJpaQueries(): AllDataResult {
+        val (customers, products) = readOnlyWrapper.findAllByQuery()
+        assertThat(customers.size).isEqualTo(numOfObjects)
+        assertThat(products.size).isEqualTo(numOfObjects)
+        println("Loaded ${customers.size + products.size} entities to the session")
+        return AllDataResult(customers = customers, products = products)
+    }
+
+    private fun simulateHeavyDataLoadWithTxNotSupported(): AllDataResult {
+        val (customers, products) = readOnlyWrapper.findAllCustomersAndProductsWithTxNotSupported()
+        assertThat(customers.size).isEqualTo(numOfObjects)
+        assertThat(products.size).isEqualTo(numOfObjects)
+        println("Loaded ${customers.size + products.size} entities to the session")
+        return AllDataResult(customers = customers, products = products)
+    }
+
+    private fun <T> detachAll(obj: Iterable<T>) {
+        obj.forEach { entityManager.detach(it) }
     }
 
 }

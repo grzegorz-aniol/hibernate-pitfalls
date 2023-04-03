@@ -1,9 +1,22 @@
 spring:
   datasource:
-    url: jdbc:tc:postgresql:12://test
+    url: jdbc:tc:postgresql:12://test?TC_REUSABLE=true
   jpa:
     hibernate:
       ddl-auto: update
       use-new-id-generator-mappings: true
     generate-ddl: true
-    database-platform: org.hibernate.dialect.PostgreSQL9Dialect
+    database-platform: org.hibernate.dialect.PostgreSQLDialect
+    properties:
+      hibernate:
+        generate_statistics: true
+
+logging:
+  level:
+#    org.hibernate.SQL: TRACE
+#    org.hibernate: DEBUG
+#    org.hibernate.engine.transaction.internal.TransactionImpl: DEBUG
+    org.hibernate.transaction: DEBUG
+    org.hibernate.jdbc: DEBUG
+    org.hibernate.stat: INFO
+    org.appga: DEBUG

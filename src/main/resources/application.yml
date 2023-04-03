@@ -1,10 +1,10 @@
 spring:
   datasource:
     driverClassName: org.postgresql.Driver
-    url: jdbc:postgresql:9.6.8://test
+    url: jdbc:postgresql:12://test
   jpa:
     hibernate:
       ddl-auto: update
       use-new-id-generator-mappings: true
     generate-ddl: true
-    database-platform: org.hibernate.dialect.PostgreSQL9Dialect
+    database-platform: org.hibernate.dialect.PostgreSQLDialect

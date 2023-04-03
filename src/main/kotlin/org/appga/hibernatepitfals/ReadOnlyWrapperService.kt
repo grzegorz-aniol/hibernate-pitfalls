@@ -1,0 +1,39 @@
+package org.appga.hibernatepitfals
+
+import jakarta.persistence.EntityManager
+import org.springframework.stereotype.Service
+import org.springframework.transaction.annotation.Propagation
+import org.springframework.transaction.annotation.Transactional
+
+data class AllDataResult(val customers: List<Customer>, val products: List<Product>)
+
+@Service
+class ReadOnlyWrapperService(
+    private val entityManager: EntityManager,
+    private val customerRepository: CustomerRepository,
+    private val productRepository: ProductRepository,
+) {
+    @Transactional(propagation = Propagation.REQUIRES_NEW, readOnly = true)
+    fun findAllCustomersAndProductsInNestedTx() = AllDataResult(
+        customers = customerRepository.findAll(),
+        products = productRepository.findAll()
+    )
+
+    @Transactional(propagation = Propagation.NOT_SUPPORTED)
+    fun findAllCustomersAndProductsWithTxNotSupported() = AllDataResult(
+        customers = customerRepository.findAll(),
+        products = productRepository.findAll()
+    )
+
+    @Transactional(propagation = Propagation.MANDATORY)
+    fun findAllByQuery(): AllDataResult {
+        return AllDataResult(
+            customers = entityManager.createQuery("select c from Customer c", Customer::class.java)
+                .setHint(org.hibernate.jpa.QueryHints.HINT_READONLY, true)
+                .resultList,
+            products = entityManager.createQuery("select p from Product p", Product::class.java)
+                .setHint(org.hibernate.jpa.QueryHints.HINT_READONLY, true)
+                .resultList
+        )
+    }
+}
