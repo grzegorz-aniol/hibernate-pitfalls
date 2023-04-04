@@ -10,7 +10,6 @@ import jakarta.persistence.Id
 import jakarta.persistence.Inheritance
 import jakarta.persistence.InheritanceType
 import jakarta.persistence.JoinColumn
-import jakarta.persistence.NamedQueries
 import jakarta.persistence.NamedQuery
 import jakarta.persistence.OneToOne
 import jakarta.persistence.PostUpdate
@@ -94,3 +93,4 @@ class Person : Human() {
 //    @Fetch(value = FetchMode.JOIN)
     lateinit var address: Address
 }
+

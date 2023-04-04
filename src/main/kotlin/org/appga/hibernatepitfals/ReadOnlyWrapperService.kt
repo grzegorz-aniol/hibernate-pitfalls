@@ -7,6 +7,7 @@ import org.springframework.transaction.annotation.Propagation
 import org.springframework.transaction.annotation.Transactional
 
 data class AllDataResult(val customers: List<Customer>, val products: List<Product>)
+data class AllImmutableDataResult(val customers: List<ImmutableCustomer>, val products: List<ImmutableProduct>)
 
 @Service
 class ReadOnlyWrapperService(
@@ -15,6 +16,8 @@ class ReadOnlyWrapperService(
     private val customerReadOnlyRepository: CustomerReadOnlyRepository,
     private val productRepository: ProductRepository,
     private val productReadOnlyRepository: ProductReadOnlyRepository,
+    private val immutableCustomerRepository: ImmutableCustomerRepository,
+    private val immutableProductRepository: ImmutableProductRepository,
 ) {
     @Transactional(propagation = Propagation.REQUIRES_NEW, readOnly = true)
     fun findAllCustomersAndProductsInNestedTx() = AllDataResult(
@@ -29,20 +32,14 @@ class ReadOnlyWrapperService(
     )
 
     @Transactional(propagation = Propagation.MANDATORY)
-    fun findAllInReadOnlyContext(): AllDataResult {
+    fun findAllInReadOnlyContext(): AllImmutableDataResult {
         val session = entityManager.unwrap(Session::class.java)
         val prevState = session.isDefaultReadOnly
         try {
             session.isDefaultReadOnly = true
-            return AllDataResult(
-                customers = customerRepository.findAll(),
-                products = productRepository.findAll(),
-                // without session.isDefaultReadOnly = true,
-                // all other ways of reading read-only entities works as well
-//                  customers = customerReadOnlyRepository.findBy(),
-//                  products = productReadOnlyRepository.findBy(),
-//                customers = entityManager.createNamedQuery("findAllCustomers", Customer::class.java).resultList,
-//                products = entityManager.createNamedQuery("findAllProducts", Product::class.java).resultList,
+            return AllImmutableDataResult(
+                  customers = immutableCustomerRepository.findAll(),
+                  products = immutableProductRepository.findAll(),
             )
         } finally {
             session.isDefaultReadOnly = prevState

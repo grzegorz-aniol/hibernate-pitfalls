@@ -1,7 +1,5 @@
 package org.appga.hibernatepitfals
 
-import com.github.javafaker.Faker
-import jakarta.persistence.EntityManager
 import java.util.UUID
 import org.appga.hibernatepitfals.hibernate.DirtyCheckInterceptor
 import org.assertj.core.api.Assertions.assertThat
@@ -115,7 +113,7 @@ class SlowQueryWithMultipleEntitiesLoadedTest : AbstractPostgresTest() {
 
     @Test
     @Transactional
-    fun `solution 4 - perform heavy load using read-only context`() {
+    fun `experiment 4 - run heavy load using immutable entities - it's not fast as expected`() {
         val tries = 1000
 
         // reading before
@@ -136,7 +134,7 @@ class SlowQueryWithMultipleEntitiesLoadedTest : AbstractPostgresTest() {
         // still the same queries are few times slower
         assertThat(searchingAvgTimeAfter)
             .`as`("Queries should be as much performant as before with some tolerance")
-            .isLessThan(6.0 * searchingAvgTime)
+            .isLessThan(1.0 * searchingAvgTime)
     }
 
     private fun getPersistenceContextEntitiesCount(): Int {
@@ -214,12 +212,12 @@ class SlowQueryWithMultipleEntitiesLoadedTest : AbstractPostgresTest() {
         log.info("Loaded ${customers.size + products.size} entities to the session")
     }
 
-    private fun runHeavyDataLoadAsReadOnly(): AllDataResult {
+    private fun runHeavyDataLoadAsReadOnly(): AllImmutableDataResult {
         val (customers, products) = readOnlyWrapper.findAllInReadOnlyContext()
         assertThat(customers.size).isEqualTo(numOfObjects)
         assertThat(products.size).isEqualTo(numOfObjects)
         log.info("Loaded ${customers.size + products.size} entities to the session")
-        return AllDataResult(customers = customers, products = products)
+        return AllImmutableDataResult(customers = customers, products = products)
     }
 
     private fun runHeavyDataLoadWithTxNotSupported(): AllDataResult {

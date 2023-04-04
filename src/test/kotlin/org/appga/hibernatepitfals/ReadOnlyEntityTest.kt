@@ -6,6 +6,7 @@ import org.assertj.core.api.Assertions.assertThat
 import org.hibernate.Session
 import org.hibernate.jpa.QueryHints
 import org.junit.jupiter.api.BeforeAll
+import org.junit.jupiter.api.Disabled
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.TestInstance
 import org.springframework.boot.test.context.SpringBootTest
@@ -180,10 +181,8 @@ class ReadOnlyEntityTest : AbstractPostgresTest() {
 
     @Test
     @Transactional
+    @Disabled("Dirty check is not run in that case with Hibernate 6")
     fun `should run dirty check before any query`() {
-        val newName = Faker.instance().funnyName().name()
-        log.info("New name: $newName")
-
         // fetch all entities
         customerRepository.findAll().first()
 
@@ -197,9 +196,6 @@ class ReadOnlyEntityTest : AbstractPostgresTest() {
     @Test
     @Transactional
     fun `should not run dirty check if entities were loaded in read-only mode`() {
-        val newName = Faker.instance().funnyName().name()
-        log.info("New name: $newName")
-
         // load all entities to persistence context (using read-only hint)
         customerReadOnlyRepository.findBy()
 
@@ -212,9 +208,6 @@ class ReadOnlyEntityTest : AbstractPostgresTest() {
     @Test
     @Transactional
     fun `should not run dirty check if entities were loaded in read-only mode (variant #2)`() {
-        val newName = Faker.instance().funnyName().name()
-        log.info("New name: $newName")
-
         withReadOnlyEntities {
             // load all entities to Persistence Context as read-only
             customerRepository.findAll().first()
